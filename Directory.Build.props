@@ -5,6 +5,7 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <DebugType>embedded</DebugType>
+    <NoWarn>$(NoWarn);NETSDK1188</NoWarn>
     <WarnOn>
       FS0193
       ;FS1182
