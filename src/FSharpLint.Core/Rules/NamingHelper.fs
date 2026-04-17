@@ -502,7 +502,6 @@ module Asynchronous =
         try
             // BasicQualifiedName may throw InvalidOperationException for some types
             // e.g. arrays, but not for Async<'T> or Task<'T>, so assume non-async type.
-            // FCS 43.12: BasicQualifiedName is now string option
             match fSharpType.BasicQualifiedName with
             | Some "Microsoft.FSharp.Control.FSharpAsync`1" -> FSharpTypeAsync
             | Some name when name.StartsWith "System.Threading.Tasks.Task" ->
