@@ -58,7 +58,7 @@ let runner (args:AstNodeRuleParams) =
     
     let identifiers =
         match args.AstNode with
-        | AstNode.Expression(SynExpr.LetOrUse(isBang = true; bindings = binding :: _)) ->
+        | AstNode.Expression(ExpressionUtilities.LetOrUse({Bindings = binding :: _}, true, _)) ->
             match binding with
             | SynBinding(headPat = pat) ->
                 getParameterWithBelowMinimumLength [pat]

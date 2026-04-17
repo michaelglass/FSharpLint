@@ -27,7 +27,7 @@ let rec private processExpressions
     (processArgs: SynSimplePats -> bool)
     (expressions: list<SynExpr>) =
     match expressions with
-    | SynExpr.LetOrUse(_, _, _, false, bindings, _, _, _) :: rest ->
+    | ExpressionUtilities.LetOrUse({Bindings = bindings}, false, _) :: rest ->
         bindings |> List.exists processBinding
         || processExpressions processBinding processArgs rest
     | SynExpr.Sequential(_, _, expr1, expr2, _, _) :: rest ->
@@ -114,7 +114,7 @@ let runner (args: AstNodeRuleParams) =
 
             let processModuleDeclaration (moduleDecl: SynModuleDecl) =
                 match moduleDecl with
-                | SynModuleDecl.Let(_, bindings, _) -> bindings |> List.exists processBinding
+                | SynModuleDecl.Let(_, bindings, _, _) -> bindings |> List.exists processBinding
                 | _ -> false
 
             let processExpression (expr: SynExpr) = processExpressions processBinding processArgs (List.singleton expr)

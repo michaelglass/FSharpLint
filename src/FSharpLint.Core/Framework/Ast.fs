@@ -135,7 +135,7 @@ module Ast =
         | SynModuleDecl.NestedModule(componentInfo, _, moduleDeclarations, _, _, _) ->
             List.revIter (ModuleDeclaration >> add) moduleDeclarations
             add <| ComponentInfo componentInfo
-        | SynModuleDecl.Let(_, bindings, _) -> List.revIter (Binding >> add) bindings
+        | SynModuleDecl.Let(_, bindings, _, _) -> List.revIter (Binding >> add) bindings
         | SynModuleDecl.Expr(expression, _) -> add <| Expression expression
         | SynModuleDecl.Types(typeDefinitions, _) -> List.revIter (TypeDefinition >> add) typeDefinitions
         | SynModuleDecl.Exception(SynExceptionDefn.SynExceptionDefn(repr, _, members, _), _) ->
@@ -204,7 +204,7 @@ module Ast =
         | SynMemberDefn.ImplicitInherit(synType, expression, _, _, _) ->
             add <| Expression expression
             add <| Type synType
-        | SynMemberDefn.LetBindings(bindings, _, _, _) -> List.revIter (Binding >> add) bindings
+        | SynMemberDefn.LetBindings(bindings, _, _, _, _) -> List.revIter (Binding >> add) bindings
         | SynMemberDefn.Interface(synType, _, Some(members), _) ->
             List.revIter (MemberDefinition >> add) members
             add <| Type synType
@@ -322,16 +322,16 @@ module Ast =
         | SynExpr.Downcast(expression, synType, _) ->
             addMany [Type synType; Expression expression]
         // regular let or use
-        | SynExpr.LetOrUse(_, _, _, false, bindings, expression, _, _) ->
-            add <| Expression expression
+        | ExpressionUtilities.LetOrUse({Bindings = bindings; Body = body}, false, _) ->
+            add <| Expression body
             List.revIter (Binding >> add) bindings
         // let! or use!
-        | SynExpr.LetOrUse(_, _, _, true, bindings, leftHandSide, _, _) ->
+        | ExpressionUtilities.LetOrUse({Bindings = bindings; Body = body}, true, _) ->
             match bindings with
             | firstBinding :: andBangs ->
                 match firstBinding with
                 | SynBinding(headPat = pattern; expr = rightHandSide) ->
-                    addMany [Expression rightHandSide; Expression leftHandSide]
+                    addMany [Expression rightHandSide; Expression body]
                     List.iter (fun (SynBinding(headPat = pattern; expr = body)) ->
                         addMany [Expression body; Pattern pattern]
                     ) andBangs

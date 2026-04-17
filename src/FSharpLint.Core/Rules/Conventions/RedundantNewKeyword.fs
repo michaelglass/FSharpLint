@@ -50,7 +50,7 @@ let runner args =
             args.GetParents args.NodeIndex
             |> List.tryFind 
                 (function
-                 | AstNode.Expression(SynExpr.LetOrUse(_, true, _, _, _, _, _, _)) -> true
+                 | AstNode.Expression(ExpressionUtilities.LetOrUse(_, _, true)) -> true
                  | _ -> false)
         match maybeUseBinding with
         | Some _binding ->
