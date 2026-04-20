@@ -552,9 +552,39 @@ module Lint =
                                 projectPath.Replace("\\", "/"))
                         |> Seq.toArray
 
-                    let! lintResults = 
+                    // Share one WorkspaceLoader across the solution so MSBuild design-time
+                      // builds happen once per process and the whole project graph is visible
+                      // when resolving project-to-project references.
+                    let loader = Ionide.ProjInfo.WorkspaceLoader.Create toolsPath
+                    let loadNotifications = ResizeArray<_>()
+                    loader.Notifications.Add loadNotifications.Add
+                    let loadedProjects = loader.LoadProjects (Array.toList projectsInSolution)
+
+                    let! lintResults =
                         projectsInSolution
-                        |> Array.map (fun projectFilePath -> asyncLintProject optionalParams projectFilePath toolsPath)
+                        |> Array.map (fun projPath ->
+                            let normalized = Path.GetFullPath projPath
+                            let optProj =
+                                loadedProjects
+                                |> Seq.tryFind (fun p -> Path.GetFullPath p.ProjectFileName = normalized)
+                            match optProj with
+                            | Some proj ->
+                                // Singleton known-set so FCS resolves P2P references against
+                                  // compiled DLLs. Passing the full set makes FCS treat
+                                  // referenced projects as source projects, re-type-checking
+                                  // them per dependent.
+                                let fsprojOpts = Ionide.ProjInfo.FCS.mapToFSharpProjectOptions proj [proj]
+                                asyncLintProjectOptions optionalParams fsprojOpts
+                            | None ->
+                                async {
+                                    let errMsg =
+                                        loadNotifications
+                                        |> Seq.tryPick (function
+                                            | Ionide.ProjInfo.Types.WorkspaceProjectState.Failed(pf, e) when Path.GetFullPath pf = normalized -> Some (string e)
+                                            | _ -> None)
+                                        |> Option.defaultValue "Unknown error when loading project file."
+                                    return LintResult.Failure (MSBuildFailedToLoadProjectFile (projPath, BuildFailure.InvalidProjectFileMessage errMsg))
+                                })
                         |> Async.Sequential
 
                     let (successes, failures) =
