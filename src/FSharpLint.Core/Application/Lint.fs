@@ -533,7 +533,18 @@ module Lint =
             // Pre-load configuration so it isn't reloaded for every project.
             match getConfig optionalParams.Configuration with
             | Ok config ->
-                let optionalParams = { optionalParams with Configuration = ConfigurationParam.Configuration config }
+                // Share a single FSharpChecker across every project in the solution so
+                  // that parsed trees, referenced-assembly symbols, and project typecheck
+                  // results computed for one project can be reused when a later project
+                  // in the same build closure references it.
+                let sharedChecker =
+                    match optionalParams.Checker with
+                    | Some c -> c
+                    | None -> FSharpChecker.Create(keepAssemblyContents=true, parallelReferenceResolution=true)
+                let optionalParams =
+                    { optionalParams with
+                        Configuration = ConfigurationParam.Configuration config
+                        Checker = Some sharedChecker }
 
                 try
                     // Use Microsoft.Build.Construction.SolutionFile for modern solution parsing
@@ -552,9 +563,39 @@ module Lint =
                                 projectPath.Replace("\\", "/"))
                         |> Seq.toArray
 
-                    let! lintResults = 
+                    // Share one WorkspaceLoader across the solution so MSBuild design-time
+                      // builds happen once per process and the whole project graph is visible
+                      // when resolving project-to-project references.
+                    let loader = Ionide.ProjInfo.WorkspaceLoader.Create toolsPath
+                    let loadNotifications = ResizeArray<_>()
+                    loader.Notifications.Add loadNotifications.Add
+                    let loadedProjects = loader.LoadProjects (Array.toList projectsInSolution)
+
+                    let! lintResults =
                         projectsInSolution
-                        |> Array.map (fun projectFilePath -> asyncLintProject optionalParams projectFilePath toolsPath)
+                        |> Array.map (fun projPath ->
+                            let normalized = Path.GetFullPath projPath
+                            let optProj =
+                                loadedProjects
+                                |> Seq.tryFind (fun p -> Path.GetFullPath p.ProjectFileName = normalized)
+                            match optProj with
+                            | Some proj ->
+                                // Map with a singleton known-set so FCS resolves P2P references
+                                  // against compiled DLLs (matching the per-project load path). Passing
+                                  // the full set would make FCS treat referenced projects as source
+                                  // projects and re-type-check them per dependent, duplicating work.
+                                let fsprojOpts = Ionide.ProjInfo.FCS.mapToFSharpProjectOptions proj [proj]
+                                asyncLintProjectOptions optionalParams fsprojOpts
+                            | None ->
+                                async {
+                                    let errMsg =
+                                        loadNotifications
+                                        |> Seq.tryPick (function
+                                            | Ionide.ProjInfo.Types.WorkspaceProjectState.Failed(pf, e) when Path.GetFullPath pf = normalized -> Some (string e)
+                                            | _ -> None)
+                                        |> Option.defaultValue "Unknown error when loading project file."
+                                    return LintResult.Failure (MSBuildFailedToLoadProjectFile (projPath, BuildFailure.InvalidProjectFileMessage errMsg))
+                                })
                         |> Async.Sequential
 
                     let (successes, failures) =
