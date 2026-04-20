@@ -533,7 +533,18 @@ module Lint =
             // Pre-load configuration so it isn't reloaded for every project.
             match getConfig optionalParams.Configuration with
             | Ok config ->
-                let optionalParams = { optionalParams with Configuration = ConfigurationParam.Configuration config }
+                // Share a single FSharpChecker across every project in the solution so
+                  // parsed trees, referenced-assembly symbols, and project typecheck
+                  // results computed for one project can be reused when a later project
+                  // in the same build closure references it.
+                let sharedChecker =
+                    match optionalParams.Checker with
+                    | Some c -> c
+                    | None -> FSharpChecker.Create(keepAssemblyContents=true, parallelReferenceResolution=true)
+                let optionalParams =
+                    { optionalParams with
+                        Configuration = ConfigurationParam.Configuration config
+                        Checker = Some sharedChecker }
 
                 try
                     // Use Microsoft.Build.Construction.SolutionFile for modern solution parsing
