@@ -5,11 +5,7 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <DebugType>embedded</DebugType>
-    <!-- NU1903: transitive dep System.Security.Cryptography.Xml 9.0.0 has a known
-         high-severity vulnerability via Microsoft.Build.* 17.14.28 (Ionide.ProjInfo).
-         Suppressed until the build-stack chain updates; not exploitable in our usage
-         (we don't parse untrusted XML signatures). -->
-    <NoWarn>$(NoWarn);NETSDK1188;NU1903</NoWarn>
+    <NoWarn>$(NoWarn);NETSDK1188</NoWarn>
     <WarnOn>
       FS0193
       ;FS1182
@@ -17,6 +13,15 @@
       ;FS3390
     </WarnOn>
   </PropertyGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <!-- Resolve GHSA-37gx-xxp4-5rgx (System.Security.Cryptography.Xml <= 9.0.0, High) by
+         forward-pinning the patched version instead of suppressing NU1903. Pulled transitively
+         via Microsoft.Build.Tasks.Core 17.14.28 (Ionide.ProjInfo). The version (10.0.9) is
+         pinned centrally in Directory.Packages.props (CPM); 10.0.9 matches the net10.0 TFM and
+         the override FsHotWatch / FSharpLintAnalyzerShim already apply. The condition keeps it
+         off the netcoreapp3.1 / netstandard2.0 functional-test fixture projects. -->
+    <PackageReference Include="System.Security.Cryptography.Xml" />
+  </ItemGroup>
   <PropertyGroup Condition=" '$(Configuration)' != 'Debug' ">
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <MSBuildTreatWarningsAsErrors>true</MSBuildTreatWarningsAsErrors>
