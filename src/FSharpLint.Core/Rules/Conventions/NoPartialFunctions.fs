@@ -358,7 +358,9 @@ let runner (config:Config) (args:AstNodeRuleParams) =
                                  let fsharpType = identifierSymbol.FullType
                                  match matchesBuiltinFSharpType typeName fsharpType with
                                  | Some value -> value
-                                 | None -> identifierSymbol.FullType.TypeDefinition.FullName = typeName
+                                 | None ->
+                                     fsharpType.HasTypeDefinition
+                                     && fsharpType.TypeDefinition.FullName = typeName
 
                             if typeMatches then
                                 match replacementStrategy with
