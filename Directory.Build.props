@@ -16,8 +16,8 @@
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <!-- Resolve GHSA-37gx-xxp4-5rgx (System.Security.Cryptography.Xml <= 9.0.0, High) by
          forward-pinning the patched version instead of suppressing NU1903. Pulled transitively
-         via Microsoft.Build.Tasks.Core 17.14.28 (Ionide.ProjInfo). The version (10.0.9) is
-         pinned centrally in Directory.Packages.props (CPM); 10.0.9 matches the net10.0 TFM and
+         via Microsoft.Build.Tasks.Core 17.14.28 (Ionide.ProjInfo). The version (10.0.10) is
+         pinned centrally in Directory.Packages.props (CPM); 10.0.10 matches the net10.0 TFM and
          the override FsHotWatch / FSharpLintAnalyzerShim already apply. The condition keeps it
          off the netcoreapp3.1 / netstandard2.0 functional-test fixture projects. -->
     <PackageReference Include="System.Security.Cryptography.Xml" />
