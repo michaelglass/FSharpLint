@@ -23,6 +23,22 @@ module Dictionary =
 
         dict.Add(key, value)
 
+module Array =
+
+    // Calling Array.collect with an empty array causes it to allocate two empty arrays, which causes significant allocations
+    // This wrapper short circuits the empty case by directly returning array.empty
+    let inline collectIfNotEmpty ([<InlineIfLambda>] mapping: 'Source -> 'Dest array) (array: 'Source array) =
+        if Array.isEmpty array then
+            Array.empty
+        else
+            Array.collect mapping array
+
+    let inline mapIfNotEmpty ([<InlineIfLambda>] mapping: 'Source -> 'Dest) (array: 'Source array) =
+        if Array.isEmpty array then
+            Array.empty
+        else
+            Array.map mapping array
+
 module ExpressionUtilities =
 
     open System
@@ -146,7 +162,7 @@ module ExpressionUtilities =
             && (range.EndLine, range.EndColumn) <= (containingRange.EndLine, containingRange.EndColumn)
 
     /// Active pattern to match any SynExpr.LetOrUse
-    /// Returns a tuple of (isBang, isUse, record) allowing matching on both booleans and accessing the full record
+    /// Returns a tuple of (record, isBang, isUse) allowing matching on both booleans and accessing the full record
     /// Borrowed from https://github.com/nojaf/fsharp/blob/b3d90dc6ab9a9cedad4b8702fd8625f8f8175ae1/src/Compiler/SyntaxTree/SyntaxTreeOps.fs#L138
     [<return: Struct>]
     let (|LetOrUse|_|) (expr: SynExpr) =
@@ -159,16 +175,16 @@ module String =
     open System.IO
 
     [<TailCall>]
-    let rec private iterateLines (lines: ResizeArray<string*int*bool>) (readLine: unit -> Option<string>) currentLine index =
+    let rec private iterateLines (lines: ResizeArray<string*int*bool>) (readLine: unit -> ValueOption<string>) currentLine index =
         match currentLine with
-        | Some line ->
+        | ValueSome line ->
             let nextLine = readLine ()
-            let isLastLine = Option.isNone nextLine
+            let isLastLine = ValueOption.isNone nextLine
 
             lines.Add(line, index, isLastLine)
 
             iterateLines lines readLine nextLine (index + 1)
-        | None -> ()
+        | ValueNone -> ()
 
     let toLines input =
         let lines = ResizeArray()
@@ -176,8 +192,8 @@ module String =
 
         let readLine () =
             match reader.ReadLine() with
-            | null -> None
-            | line -> Some line
+            | null -> ValueNone
+            | line -> ValueSome line
 
         iterateLines lines readLine (readLine ()) 0
 

@@ -172,6 +172,16 @@ if foo.Head 1 then
         this.AssertErrorWithMessageExists("Consider using 'List.tryHead' instead of partial function/method 'List.Head'.")
 
     [<Test>]
+    member this.``Error for Seq.cast``() =
+        this.Parse """
+let foo = [ box "Hello"; box 42 ]
+let bar = Seq.cast<string> foo
+"""
+
+        Assert.IsTrue this.ErrorsExist
+        this.AssertErrorWithMessageExists("Consider using 'Seq.choose tryUnbox' instead of partial function/method 'Seq.cast'.")
+
+    [<Test>]
     member this.``Regression found when parsing Console/Program_fs``() =
         this.Parse """
 module Program =
@@ -182,6 +192,24 @@ module Program =
 """
 
         this.AssertNoWarnings()
+
+    [<Test>]
+    member this.``Regression test for object expressions``() =
+        this.Parse """
+type Foo =
+    abstract Bar: unit -> unit
+
+let host = 
+    { new Foo with
+        member _.Bar() =
+            () }
+
+let x = 
+    JsonDocument.Parse(responseBody).RootElement |> ignore
+    Option.ofObj(host).Value
+"""
+        
+        Assert.IsTrue this.ErrorsExist
 (*
     // Examples for future additions, see 'Foo.Bar.Baz' in partialInstanceMemberIdentifiers in .Core/.../NoPartialFunctions.fs
 

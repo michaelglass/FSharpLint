@@ -982,3 +982,66 @@ res
         this.Parse(source)
         Assert.AreEqual(expected, this.ApplyQuickFix source)
 
+    /// Regression test for: https://github.com/fsprojects/FSharpLint/issues/856
+    [<Test>]
+    member this.``Interpolated strings with different literal text content should be treated as diffrerent``() =
+        this.SetConfig(["if x then y else y ===> y"])
+
+        this.Parse """
+let label (p: int) (currentPage: int) =
+    if p = currentPage then $"Page {p}" else $"Goto page {p}"
+"""
+        
+        Assert.That this.NoErrorsExist
+
+    [<Test>]
+    member this.``Records with different data should be treated as diffrerent``() =
+        this.SetConfig(["if x then y else y ===> y"])
+
+        this.Parse """
+
+type Text =
+    {
+        Text: string
+    }
+
+let foo =
+    if 2 = 2 then
+        {
+            Text = "foo"
+        }
+    else
+        {
+            Text = "bar"
+        }
+"""
+        
+        Assert.That this.NoErrorsExist
+
+    [<Test>]
+    [<Ignore("Fixing it would take a lot of work since AbstractSyntaxArray.getHashCode function would have to be defined for all expression types.")>]
+    member this.``Records with different data (not a literal constant) should be treated as diffrerent``() =
+        this.SetConfig(["if x then y else y ===> y"])
+
+        this.Parse """
+type Foo =
+    | Bar
+    | Baz
+
+type Record =
+    {
+        Foo: Foo
+    }
+
+let foo =
+    if 2 = 2 then
+        {
+            Foo = Bar
+        }
+    else
+        {
+            Foo = Baz
+        }
+"""
+        
+        Assert.That this.NoErrorsExist
