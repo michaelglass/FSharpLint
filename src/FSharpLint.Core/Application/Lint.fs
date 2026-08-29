@@ -460,7 +460,7 @@ module Lint =
 
             let checker =
                 match optionalParams.Checker with
-                | Some c -> c
+                | Some configuredChecker -> configuredChecker
                 | None -> FSharpChecker.Create(keepAssemblyContents=true, parallelReferenceResolution=true)
 
             let parseFilesInProject files = async {
@@ -488,8 +488,8 @@ module Lint =
                     |> Async.Parallel
 
                 let! results = Async.Parallel [|
-                    async { let! r = projectCheckAsync in return box r }
-                    async { let! r = perFileAsync in return box r }
+                    async { let! projectCheckResult = projectCheckAsync in return box projectCheckResult }
+                    async { let! perFileResults = perFileAsync in return box perFileResults }
                 |]
                 let projectCheckResults = results.[0] :?> FSharpCheckProjectResults
                 let parsedFiles = results.[1] :?> ParseFile.ParseFileResult<ParseFile.FileParseInfo>[]
@@ -548,7 +548,7 @@ module Lint =
                   // in the same build closure references it.
                 let sharedChecker =
                     match optionalParams.Checker with
-                    | Some c -> c
+                    | Some configuredChecker -> configuredChecker
                     | None -> FSharpChecker.Create(keepAssemblyContents=true, parallelReferenceResolution=true)
                 let optionalParams =
                     { optionalParams with
@@ -580,31 +580,34 @@ module Lint =
                     loader.Notifications.Add loadNotifications.Add
                     let loadedProjects = loader.LoadProjects (Array.toList projectsInSolution)
 
+                    let lintProjectPath projPath =
+                        let normalized = Path.GetFullPath projPath
+                        let optProj =
+                            loadedProjects
+                            |> Seq.tryFind (fun project -> Path.GetFullPath project.ProjectFileName = normalized)
+                        match optProj with
+                        | Some proj ->
+                            // Map with a singleton known-set so FCS resolves P2P references
+                              // against compiled DLLs (matching the per-project load path). Passing
+                              // the full set would make FCS treat referenced projects as source
+                              // projects and re-type-check them per dependent, duplicating work.
+                            let fsprojOpts = Ionide.ProjInfo.FCS.mapToFSharpProjectOptions proj [proj]
+                            asyncLintProjectOptions optionalParams fsprojOpts
+                        | None ->
+                            async {
+                                let errMsg =
+                                    loadNotifications
+                                    |> Seq.tryPick (function
+                                        | Ionide.ProjInfo.Types.WorkspaceProjectState.Failed(projectFile, error)
+                                            when Path.GetFullPath projectFile = normalized -> Some (string error)
+                                        | _ -> None)
+                                    |> Option.defaultValue "Unknown error when loading project file."
+                                return LintResult.Failure (MSBuildFailedToLoadProjectFile (projPath, BuildFailure.InvalidProjectFileMessage errMsg))
+                            }
+
                     let! lintResults =
                         projectsInSolution
-                        |> Array.map (fun projPath ->
-                            let normalized = Path.GetFullPath projPath
-                            let optProj =
-                                loadedProjects
-                                |> Seq.tryFind (fun p -> Path.GetFullPath p.ProjectFileName = normalized)
-                            match optProj with
-                            | Some proj ->
-                                // Map with a singleton known-set so FCS resolves P2P references
-                                  // against compiled DLLs (matching the per-project load path). Passing
-                                  // the full set would make FCS treat referenced projects as source
-                                  // projects and re-type-check them per dependent, duplicating work.
-                                let fsprojOpts = Ionide.ProjInfo.FCS.mapToFSharpProjectOptions proj [proj]
-                                asyncLintProjectOptions optionalParams fsprojOpts
-                            | None ->
-                                async {
-                                    let errMsg =
-                                        loadNotifications
-                                        |> Seq.tryPick (function
-                                            | Ionide.ProjInfo.Types.WorkspaceProjectState.Failed(pf, e) when Path.GetFullPath pf = normalized -> Some (string e)
-                                            | _ -> None)
-                                        |> Option.defaultValue "Unknown error when loading project file."
-                                    return LintResult.Failure (MSBuildFailedToLoadProjectFile (projPath, BuildFailure.InvalidProjectFileMessage errMsg))
-                                })
+                        |> Array.map lintProjectPath
                         |> Async.Sequential
 
                     let (successes, failures) =
@@ -671,7 +674,7 @@ module Lint =
         async {
             let checker =
                 match optionalParams.Checker with
-                | Some c -> c
+                | Some configuredChecker -> configuredChecker
                 | None -> FSharpChecker.Create(keepAssemblyContents=true)
 
             match! ParseFile.parseSource source checker with
@@ -727,7 +730,7 @@ module Lint =
         if IO.File.Exists filePath then
             let checker =
                 match optionalParams.Checker with
-                | Some c -> c
+                | Some configuredChecker -> configuredChecker
                 | None -> FSharpChecker.Create(keepAssemblyContents=true)
 
             match! ParseFile.parseFile filePath checker None with
@@ -755,7 +758,7 @@ module Lint =
     let asyncLintFiles optionalParams filePaths = async {
         let checker =
             match optionalParams.Checker with
-            | Some c -> c
+            | Some configuredChecker -> configuredChecker
             | None -> FSharpChecker.Create(keepAssemblyContents=true)
         
         match getConfig optionalParams.Configuration with

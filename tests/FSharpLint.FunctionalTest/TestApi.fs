@@ -69,7 +69,10 @@ module TestApi =
             let lines = String.toLines text |> Array.map (fun (line, _, _) -> line)
             let config = FSharpLint.Framework.Configuration.defaultConfiguration
             let rules = FSharpLint.Framework.Configuration.flattenConfig config
-            let uselessBinding = rules.AstNodeRules |> Array.find (fun rule -> rule.Name = "UselessBinding")
+            let uselessBinding =
+                rules.AstNodeRules
+                |> Array.tryFind (fun rule -> rule.Name = "UselessBinding")
+                |> Option.defaultWith (fun () -> failwith "UselessBinding rule was not found")
 
             let run () =
                 runAstNodeRules
@@ -82,7 +85,7 @@ module TestApi =
                       FileContent = text
                       Lines = lines
                       SyntaxArray = syntaxArray }
-                |> ignore
+                |> ignore<Suggestion.LintWarning [] * Context>
 
             run ()
             let before = System.GC.GetAllocatedBytesForCurrentThread()
@@ -100,7 +103,10 @@ module TestApi =
             let syntaxArray = AbstractSyntaxArray.astToArray tree
             let lines = String.toLines text |> Array.map (fun (line, _, _) -> line)
             let rules = Configuration.flattenConfig Configuration.defaultConfiguration
-            let favourIgnore = rules.AstNodeRules |> Array.find (fun rule -> rule.Name = "FavourIgnoreOverLetWild")
+            let favourIgnore =
+                rules.AstNodeRules
+                |> Array.tryFind (fun rule -> rule.Name = "FavourIgnoreOverLetWild")
+                |> Option.defaultWith (fun () -> failwith "FavourIgnoreOverLetWild rule was not found")
             let watch = Stopwatch.StartNew()
 
             runAstNodeRules
@@ -113,7 +119,7 @@ module TestApi =
                   FileContent = text
                   Lines = lines
                   SyntaxArray = syntaxArray }
-            |> ignore
+            |> ignore<Suggestion.LintWarning [] * Context>
 
             watch.Stop()
             fprintf TestContext.Out "FavourIgnoreOverLetWild runtime: %dms" watch.ElapsedMilliseconds
