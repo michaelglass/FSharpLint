@@ -41,7 +41,9 @@ open Fake.Api
 
 open System
 open System.IO
+open System.IO.Compression
 open System.Text.Json.Nodes
+open System.Xml.Linq
 
 Target.initEnvironment()
 
@@ -181,6 +183,36 @@ Target.create "Pack" (fun _ ->
             MSBuildParams = { p.MSBuildParams with Properties = properties }
         }
     ) solutionFileName
+
+    let toolPackage =
+        Directory.GetFiles(nugetDir, "dotnet-fsharplint*.nupkg")
+        |> Array.exactlyOne
+
+    use packageArchive = ZipFile.OpenRead toolPackage
+
+    let hasEntry suffix =
+        packageArchive.Entries
+        |> Seq.exists (fun entry -> entry.FullName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+
+    let nuspecEntry =
+        packageArchive.Entries
+        |> Seq.filter (fun entry -> entry.FullName.EndsWith(".nuspec", StringComparison.OrdinalIgnoreCase))
+        |> Seq.exactlyOne
+
+    use nuspecStream = nuspecEntry.Open()
+    let nuspec = XDocument.Load nuspecStream
+
+    let hasDotnetToolPackageType =
+        nuspec.Descendants()
+        |> Seq.exists (fun element ->
+            element.Name.LocalName = "packageType"
+            && String.Equals(element.Attribute(XName.Get "name").Value, "DotnetTool", StringComparison.OrdinalIgnoreCase))
+
+    if not hasDotnetToolPackageType then
+        failwith $"%s{toolPackage} is not marked as a DotnetTool package"
+
+    if not (hasEntry "DotnetToolSettings.xml") then
+        failwith $"%s{toolPackage} does not contain DotnetToolSettings.xml"
 )
 
 Target.create "Push" (fun _ ->
