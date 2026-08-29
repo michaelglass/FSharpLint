@@ -101,8 +101,12 @@ module Tests =
 
             let output = dotnetFslint arguments
 
+            let reportsMissingProject =
+                output.Contains($"Could not find the file: %s{projectFile} on disk")
+                || output.Contains($"%s{projectFile} could not be found on disk")
+
             Assert.IsTrue(
-                output.Contains($"Could not find the file: %s{projectFile} on disk"),
+                reportsMissingProject,
                 $"Output:%s{Environment.NewLine}%s{output}")
 
         [<Test>]
