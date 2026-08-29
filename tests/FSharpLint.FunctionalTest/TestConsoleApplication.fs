@@ -96,7 +96,7 @@ module Tests =
 
         [<Test>]
         member _.UnableToFindProjectFile() =
-            let projectFile = projectPath </> "iuniubi.fsproj"
+            let projectFile = Path.GetFullPath(projectPath </> "iuniubi.fsproj")
             let arguments = $"lint %s{projectFile}"
 
             let output = dotnetFslint arguments
