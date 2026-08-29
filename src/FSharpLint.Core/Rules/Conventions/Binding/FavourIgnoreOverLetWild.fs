@@ -14,9 +14,9 @@ let private runner (args:AstNodeRuleParams) =
             | SynPat.Wild(_) -> true
             | _ -> false
 
-        match ExpressionUtilities.tryFindTextOfRange expr.Range fileContent with
-        | Some exprText -> 
-            if findWildAndIgnoreParens pattern then
+        if findWildAndIgnoreParens pattern then
+            match ExpressionUtilities.tryFindTextOfRange expr.Range fileContent with
+            | Some exprText ->
                 Array.singleton
                     { Range = range
                       Message = Resources.GetString("RulesFavourIgnoreOverLetWildError")
@@ -24,16 +24,16 @@ let private runner (args:AstNodeRuleParams) =
                                                         FromText = fileContent
                                                         ToText = sprintf "(%s) |> ignore" exprText })))
                       TypeChecks = List.Empty }
-            else
-                Array.empty
-        | None -> Array.empty
+            | None -> Array.empty
+        else
+            Array.empty
 
     match args.AstNode with
     | AstNode.Binding(SynBinding(_, _, _, _, _, _, _, pattern, _, expr, range, _, _)) ->
         let bindingRange  = 
             match args.GetParents(args.NodeIndex) with
             | AstNode.ModuleDeclaration(SynModuleDecl.Let(_, _, range, _)) :: _
-            | AstNode.Expression(ExpressionUtilities.LetOrUse({Range = range}, false, false)) :: _ -> 
+            | AstNode.Expression(ExpressionUtilities.LetOrUse({Range = range}, false, false)) :: _ ->
                 Some(range)
             | _ -> None
 

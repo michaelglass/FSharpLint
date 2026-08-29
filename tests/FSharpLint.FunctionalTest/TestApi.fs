@@ -92,6 +92,33 @@ module TestApi =
             fprintf TestContext.Out "UselessBinding allocated bytes: %d" allocated
             Assert.Less(allocated, 48L * 1024L * 1024L)
 
+        [<Category("Performance")>]
+        [<Test>]
+        member _.``FavourIgnoreOverLetWild skips source extraction for non-wildcard bindings``() =
+            let text = File.ReadAllText sourceFile
+            let tree = generateAst text
+            let syntaxArray = AbstractSyntaxArray.astToArray tree
+            let lines = String.toLines text |> Array.map (fun (line, _, _) -> line)
+            let rules = Configuration.flattenConfig Configuration.defaultConfiguration
+            let favourIgnore = rules.AstNodeRules |> Array.find (fun rule -> rule.Name = "FavourIgnoreOverLetWild")
+            let watch = Stopwatch.StartNew()
+
+            runAstNodeRules
+                { Rules = [| favourIgnore |]
+                  GlobalConfig = rules.GlobalConfig
+                  TypeCheckResults = None
+                  ProjectCheckResults = None
+                  ProjectOptions = lazy None
+                  FilePath = sourceFile
+                  FileContent = text
+                  Lines = lines
+                  SyntaxArray = syntaxArray }
+            |> ignore
+
+            watch.Stop()
+            fprintf TestContext.Out "FavourIgnoreOverLetWild runtime: %dms" watch.ElapsedMilliseconds
+            Assert.Less(watch.ElapsedMilliseconds, 250)
+
         /// Regression: analyzer hosts built on FCS's TransparentCompiler (e.g. FsHotWatch)
         /// supply ProjectCheckResults whose FSharpProjectContext.ProjectOptions getter
         /// throws by design. Rules forcing the two-phase ProjectOptions lazy (the library
