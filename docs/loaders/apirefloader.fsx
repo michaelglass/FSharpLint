@@ -32,7 +32,7 @@ let loader (projectRoot: string) (siteContet: SiteContents) =
     try
         // We need the console location as it contains all the dependencies
         let projectDir = Path.Combine(projectRoot, "..", "src", "FSharpLint.Console")
-        let dotNetMoniker = "net9.0"
+        let dotNetMoniker = "net10.0"
         let projectName = "FSharpLint.Console"
         let projectArtifactName = "FSharpLint.Core.dll"
         // Try multiple possible locations for the assembly
