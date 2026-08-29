@@ -49,17 +49,20 @@ let private runner (args:AstNodeRuleParams) =
             |> Option.toArray
         | _ -> Array.empty
 
-    let maybeSuggestedFix = 
-        match args.GetParents(args.NodeIndex) with
-        | AstNode.ModuleDeclaration(SynModuleDecl.Let(_, _, range, _)) :: _ ->
-            Some({ FromRange = range; FromText = "let"; ToText = String.Empty })
-        | AstNode.Expression(ExpressionUtilities.LetOrUse({Range = range}, false, false)) :: _ -> 
-            Some({ FromRange = range; FromText = "use"; ToText = String.Empty })
-        | _ -> None
     match args.AstNode with
     | AstNode.Binding(SynBinding(_, _, _, isMutable, _, _, _, pattern, _, expr, range, _, _))
-            when maybeSuggestedFix.IsSome && not isMutable ->
-                checkForUselessBinding args.CheckInfo pattern expr range maybeSuggestedFix
+            when not isMutable ->
+        let maybeSuggestedFix =
+            match args.GetParents(args.NodeIndex) with
+            | AstNode.ModuleDeclaration(SynModuleDecl.Let(_, _, range, _)) :: _ ->
+                Some({ FromRange = range; FromText = "let"; ToText = String.Empty })
+            | AstNode.Expression(ExpressionUtilities.LetOrUse({Range = range}, false, false)) :: _ ->
+                Some({ FromRange = range; FromText = "use"; ToText = String.Empty })
+            | _ -> None
+
+        match maybeSuggestedFix with
+        | Some _ -> checkForUselessBinding args.CheckInfo pattern expr range maybeSuggestedFix
+        | None -> Array.empty
     | _ ->
         Array.empty
 

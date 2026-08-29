@@ -8,6 +8,7 @@ module TestApi =
     open FSharpLint.Application.Lint
     open FSharp.Compiler.CodeAnalysis
     open FSharp.Compiler.Text
+    open FSharpLint.Framework
     open FSharpLint.Framework.Utilities
 
     let basePath = TestContext.CurrentContext.TestDirectory </> ".." </> ".." </> ".." </> ".." </> ".."
@@ -58,6 +59,38 @@ module TestApi =
 
             Assert.Less(result, 250)
             fprintf TestContext.Out "Average runtime of linter on parsed file: %d (milliseconds)."  result
+
+        [<Category("Performance")>]
+        [<Test>]
+        member _.``UselessBinding does not build breadcrumbs for every AST node``() =
+            let text = File.ReadAllText sourceFile
+            let tree = generateAst text
+            let syntaxArray = FSharpLint.Framework.AbstractSyntaxArray.astToArray tree
+            let lines = String.toLines text |> Array.map (fun (line, _, _) -> line)
+            let config = FSharpLint.Framework.Configuration.defaultConfiguration
+            let rules = FSharpLint.Framework.Configuration.flattenConfig config
+            let uselessBinding = rules.AstNodeRules |> Array.find (fun rule -> rule.Name = "UselessBinding")
+
+            let run () =
+                runAstNodeRules
+                    { Rules = [| uselessBinding |]
+                      GlobalConfig = rules.GlobalConfig
+                      TypeCheckResults = None
+                      ProjectCheckResults = None
+                      ProjectOptions = lazy None
+                      FilePath = sourceFile
+                      FileContent = text
+                      Lines = lines
+                      SyntaxArray = syntaxArray }
+                |> ignore
+
+            run ()
+            let before = System.GC.GetAllocatedBytesForCurrentThread()
+            run ()
+            let allocated = System.GC.GetAllocatedBytesForCurrentThread() - before
+
+            fprintf TestContext.Out "UselessBinding allocated bytes: %d" allocated
+            Assert.Less(allocated, 48L * 1024L * 1024L)
 
         /// Regression: analyzer hosts built on FCS's TransparentCompiler (e.g. FsHotWatch)
         /// supply ProjectCheckResults whose FSharpProjectContext.ProjectOptions getter
