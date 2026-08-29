@@ -42,6 +42,8 @@ open Fake.Api
 open System
 open System.IO
 open System.IO.Compression
+open System.Reflection.Metadata
+open System.Reflection.PortableExecutable
 open System.Text.Json.Nodes
 open System.Xml.Linq
 
@@ -176,6 +178,10 @@ Target.create "Pack" (fun _ ->
         ("PackageLicenseExpression", "MIT")
     ])
 
+    // A normal build immediately precedes Pack and uses the default version. Clean the
+    // Release outputs so every packaged assembly is rebuilt with the package version.
+    exec "dotnet" $"clean %s{solutionFileName} --configuration Release" ""
+
     DotNet.pack (fun p ->
         { p with
             Configuration = DotNet.BuildConfiguration.Release
@@ -213,6 +219,37 @@ Target.create "Pack" (fun _ ->
 
     if not (hasEntry "DotnetToolSettings.xml") then
         failwith $"%s{toolPackage} does not contain DotnetToolSettings.xml"
+
+    let assemblyMetadata suffix =
+        let assemblyEntry =
+            packageArchive.Entries
+            |> Seq.find (fun entry -> entry.FullName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+
+        use assemblyStream = assemblyEntry.Open()
+        use seekableAssemblyStream = new MemoryStream()
+        assemblyStream.CopyTo seekableAssemblyStream
+        seekableAssemblyStream.Position <- 0L
+        use peReader = new PEReader(seekableAssemblyStream)
+        let metadata = peReader.GetMetadataReader()
+        let assembly = metadata.GetAssemblyDefinition()
+        let references =
+            metadata.AssemblyReferences
+            |> Seq.map metadata.GetAssemblyReference
+            |> Seq.map (fun reference -> metadata.GetString(reference.Name), reference.Version)
+            |> Seq.toList
+        assembly.Version, references
+
+    let coreVersion, _ = assemblyMetadata "FSharpLint.Core.dll"
+    let _, consoleReferences = assemblyMetadata "dotnet-fsharplint.dll"
+
+    let referencedCoreVersion =
+        consoleReferences
+        |> List.find (fun (name, _) -> name = "FSharpLint.Core")
+        |> snd
+
+    if referencedCoreVersion <> coreVersion then
+        failwith
+            $"dotnet-fsharplint references FSharpLint.Core %O{referencedCoreVersion}, but the package contains %O{coreVersion}"
 )
 
 Target.create "Push" (fun _ ->
