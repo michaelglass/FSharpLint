@@ -106,20 +106,43 @@ let isTag =
     else
         githubRef.StartsWith tagPrefix
 
-let nugetVersion =
-    match (changelog.Unreleased, isTag) with
-    | (Some _unreleased, true) -> failwith "Shouldn't publish a git tag for changes outside a real release"
-    | (None, true) ->
-        changelog.LatestEntry.NuGetVersion
-    | (_, false) ->
-        let current = changelog.LatestEntry.NuGetVersion |> SemVer.parse
-        let bumped = { current with
-                            Patch = current.Patch + 1u
-                            Original = None
-                            PreRelease = None }
-        let bumpedBaseVersion = string bumped
+// A local Core artifact has an explicit identity and cannot enter release targets.
+let localPackageVersion = getBuildParam "FSHARPLINT_LOCAL_PACKAGE_VERSION"
+let isLocalCorePack =
+    Environment.GetCommandLineArgs()
+    |> Array.exists ((=) "PackLocalCore")
 
-        Fsdk.Network.GetNugetPrereleaseVersionFromBaseVersion bumpedBaseVersion
+if Environment.GetCommandLineArgs() |> Array.exists (fun arg -> arg = "Push" || arg = "Release") then
+    if localPackageVersion.IsSome then failwith "Local package versions cannot be published"
+
+let validatedLocalPackageVersion () =
+    match localPackageVersion with
+    | Some version when
+        System.Text.RegularExpressions.Regex.IsMatch(
+            version, @"^[0-9]+\.[0-9]+\.[0-9]+-local\.[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*$") ->
+        SemVer.parse version |> ignore
+        version
+    | _ -> failwith "PackLocalCore requires FSHARPLINT_LOCAL_PACKAGE_VERSION with a unique -local. prerelease version"
+
+if localPackageVersion.IsSome && not isLocalCorePack then
+    failwith "FSHARPLINT_LOCAL_PACKAGE_VERSION is permitted only with PackLocalCore; unset it for other targets"
+
+let nugetVersion =
+    if isLocalCorePack then validatedLocalPackageVersion ()
+    else
+      match (changelog.Unreleased, isTag) with
+      | (Some _unreleased, true) -> failwith "Shouldn't publish a git tag for changes outside a real release"
+      | (None, true) ->
+          changelog.LatestEntry.NuGetVersion
+      | (_, false) ->
+          let current = changelog.LatestEntry.NuGetVersion |> SemVer.parse
+          let bumped = { current with
+                              Patch = current.Patch + 1u
+                              Original = None
+                              PreRelease = None }
+          let bumpedBaseVersion = string bumped
+
+          Fsdk.Network.GetNugetPrereleaseVersionFromBaseVersion bumpedBaseVersion
 
 let PackageReleaseNotes baseProps =
     if isTag then
@@ -167,6 +190,17 @@ Target.create "BuildRelease" (fun _ ->
     ) solutionFileName
 )
 
+
+// Deliberately independent of Pack/Push/Release: local consumer qualification only.
+Target.create "PackLocalCore" (fun _ ->
+    let version = validatedLocalPackageVersion ()
+    DotNet.pack (fun p ->
+        { p with
+            Configuration = DotNet.BuildConfiguration.Release
+            OutputPath = Some "./out/local"
+            MSBuildParams = { p.MSBuildParams with Properties = [ "Version", version ] }
+        }) "src/FSharpLint.Core/FSharpLint.Core.fsproj"
+)
 
 Target.create "Pack" (fun _ ->
     let properties = PackageReleaseNotes ([
