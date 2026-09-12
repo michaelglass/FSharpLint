@@ -1,6 +1,8 @@
 // --------------------------------------------------------------------------------------
 // FAKE build script
 // --------------------------------------------------------------------------------------
+// Patch FAKE's transitive NuGet client (GHSA-g4vj-cjjj-v7hg).
+#r "nuget: NuGet.Protocol, Version=6.12.5"
 #r "nuget: MSBuild.StructuredLogger"
 #r "nuget: Fake.Core"
 #r "nuget: Fake.Core.Target"

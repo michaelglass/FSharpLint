@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Pin the build script's NuGet.Protocol dependency to 6.12.5, including patched NuGet.Packaging, for GHSA-g4vj-cjjj-v7hg.
+
 - Update Microsoft.SourceLink.GitHub to 10.0.303, which uses the patched Microsoft.Build.Tasks.Git dependency for CVE-2026-62900 (GHSA-23fw-v26w-5fgq).
 
 ## [0.26.10] - 2025-12-30
