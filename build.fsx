@@ -200,7 +200,7 @@ Target.create "PackLocalCore" (fun _ ->
         { p with
             Configuration = DotNet.BuildConfiguration.Release
             OutputPath = Some "./out/local"
-            MSBuildParams = { p.MSBuildParams with Properties = [ "Version", version ] }
+            MSBuildParams = { p.MSBuildParams with Properties = [ ("Version", version) ] }
         }) "src/FSharpLint.Core/FSharpLint.Core.fsproj"
 )
 
