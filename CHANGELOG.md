@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Security
+
+- Update Microsoft.SourceLink.GitHub to 10.0.303, which uses the patched Microsoft.Build.Tasks.Git dependency for CVE-2026-62900 (GHSA-23fw-v26w-5fgq).
+
 ## [0.26.10] - 2025-12-30
 
 - AvoidSinglePipeOperator: fix false positive, allowing single pipe operator with multiline argument #808 [@webwarrior-ws]
