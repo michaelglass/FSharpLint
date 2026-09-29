@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Update Microsoft.SourceLink.GitHub to 10.0.303, which uses the patched Microsoft.Build.Tasks.Git dependency for CVE-2026-62900 (GHSA-23fw-v26w-5fgq).
 
+- Pin the transitive System.Security.Cryptography.Xml to 10.0.10 on net10.0 for GHSA-37gx-xxp4-5rgx, replacing the NU1903 suppression.
+
 ## [0.27.0] - 2026-06-05
 
 - Fix: hint false positive for interpolated strings without sprintf #857 #856 [@webwarrior-ws]
