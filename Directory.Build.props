@@ -21,6 +21,7 @@
          the override FsHotWatch / FSharpLintAnalyzerShim already apply. The condition keeps it
          off the netcoreapp3.1 / netstandard2.0 functional-test fixture projects. -->
     <PackageReference Include="System.Security.Cryptography.Xml" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(Configuration)' != 'Debug' ">
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>

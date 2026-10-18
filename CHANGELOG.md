@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pin the transitive System.Security.Cryptography.Xml to 10.0.10 on net10.0 for GHSA-37gx-xxp4-5rgx, replacing the NU1903 suppression.
 
+- Pin System.Security.Cryptography.Xml and System.Security.Cryptography.Pkcs to 10.0.13 on net10.0: 10.0.10 gained GHSA-7hqp-7c5m-4vq6, GHSA-c399-9853-6jmj, GHSA-r955-8q5j-3h83, GHSA-846f-f764-76mx (High) and GHSA-2fmv-rv2c-59x7 (Moderate).
+
 ## [0.27.0] - 2026-06-05
 
 - Fix: hint false positive for interpolated strings without sprintf #857 #856 [@webwarrior-ws]
