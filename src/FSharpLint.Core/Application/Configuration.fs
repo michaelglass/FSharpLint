@@ -69,10 +69,18 @@ module IgnoreFiles =
 
     type IsDirectory = | IsDirectory of bool
 
+    /// One `/`-separated segment of an ignore glob.
+    [<NoComparison>]
+    type GlobSegment =
+        /// Matches exactly one path segment; `*` and `?` never cross a `/`.
+        | Segment of regex: Regex
+        /// A segment that is exactly `**`: matches zero or more path segments.
+        | GlobStar
+
     [<NoComparison>]
     type Ignore =
-        | Ignore of segments: Regex list * isDir: IsDirectory
-        | Negate of segments: Regex list * isDir: IsDirectory
+        | Ignore of segments: GlobSegment list * isDir: IsDirectory
+        | Negate of segments: GlobSegment list * isDir: IsDirectory
 
     let parseIgnorePath (path:string) =
         let globToRegex glob =
@@ -80,45 +88,53 @@ module IgnoreFiles =
                 $"""^{Regex.Escape(glob).Replace(@"\*", ".*").Replace(@"\?", ".")}$""",
                 RegexOptions.IgnoreCase ||| RegexOptions.Singleline)
 
+        let toGlobSegment glob =
+            if glob = "**" then GlobStar else Segment(globToRegex glob)
+
         let isDirectory = path.EndsWith("/")
 
-        let getRegexSegments (path:string) =
+        let getGlobSegments (path:string) =
             path.Split([| '/' |], StringSplitOptions.RemoveEmptyEntries)
-            |> Array.map globToRegex
+            |> Array.map toGlobSegment
+            |> Array.toList
 
         if path.StartsWith("!") then
-            getRegexSegments (path.Substring(1))
-            |> Array.toList
-            |> fun segments -> Negate(segments, IsDirectory(isDirectory))
+            Negate(getGlobSegments (path.Substring(1)), IsDirectory(isDirectory))
         else
-            getRegexSegments (if path.StartsWith(@"\!") then path.Substring(1) else path)
-            |> Array.toList
-            |> fun segments -> Ignore(segments, IsDirectory(isDirectory))
+            Ignore(getGlobSegments (if path.StartsWith(@"\!") then path.Substring(1) else path), IsDirectory(isDirectory))
 
+    /// True when any (globs, path) state matches: its globs consume all of its path or,
+    /// with `allowRest`, a prefix of it. A `**` either consumes nothing or one more path
+    /// segment; the alternatives are queued rather than recursed into, so the search stays
+    /// tail-recursive. A trailing `**` must consume at least one segment, so `dir/**`
+    /// matches what is inside `dir` but not a file named `dir`.
     [<TailCall>]
-    let rec private doesGlobSeqMatchPathSeq globs isDirectory remainingPath currentlyMatchingGlobs =
-        let getRemainingGlobSeqForMatches (pathSegment:string) (globSeqs:Regex list list) =
-            List.choose 
-                (function
-                    | (globSegment: Regex)::remaining when globSegment.IsMatch(pathSegment) -> Some remaining
-                    | _ -> None) 
-                globSeqs
-
-        match remainingPath with
-        | [_] when isDirectory -> false
-        | currentSegment::remaining ->
-            let updatedCurrentlyMatchingGlobs = getRemainingGlobSeqForMatches currentSegment (globs::currentlyMatchingGlobs)
-
-            let aGlobWasCompletelyMatched = List.exists List.isEmpty updatedCurrentlyMatchingGlobs
-
-            let matched = aGlobWasCompletelyMatched && (isDirectory || (not isDirectory && List.isEmpty remaining))
-
-            if matched then true
-            else doesGlobSeqMatchPathSeq globs isDirectory remaining updatedCurrentlyMatchingGlobs
+    let rec private anyStateMatches allowRest (states:(GlobSegment list * string list) list) =
+        match states with
         | [] -> false
+        | (globs, path) :: otherStates ->
+            match (globs, path) with
+            | [], [] -> true
+            | [], _ :: _ -> if allowRest then true else anyStateMatches allowRest otherStates
+            | [ GlobStar ], _ :: _ -> true
+            | [ GlobStar ], [] -> anyStateMatches allowRest otherStates
+            | GlobStar :: remainingGlobs, _ :: remainingPath ->
+                anyStateMatches allowRest ((remainingGlobs, path) :: (globs, remainingPath) :: otherStates)
+            | GlobStar :: remainingGlobs, [] -> anyStateMatches allowRest ((remainingGlobs, path) :: otherStates)
+            | Segment regex :: remainingGlobs, segment :: remainingPath when regex.IsMatch segment ->
+                anyStateMatches allowRest ((remainingGlobs, remainingPath) :: otherStates)
+            | Segment _ :: _, _ -> anyStateMatches allowRest otherStates
 
-    let private pathMatchesGlob (globs:Regex list) (path:string list) isDirectory =
-        doesGlobSeqMatchPathSeq globs isDirectory path List.Empty
+    /// A glob may start matching at any path segment. A file glob must end on the file
+    /// name; a directory glob must end on a directory, so it never matches the file name.
+    let private pathMatchesGlob (globs:GlobSegment list) (path:string list) isDirectory =
+        let candidate =
+            if isDirectory then List.truncate (List.length path - 1) path
+            else path
+
+        let startingStates = List.init (List.length candidate) (fun start -> (globs, List.skip start candidate))
+
+        not (List.isEmpty globs) && anyStateMatches isDirectory startingStates
 
     let shouldFileBeIgnored (ignorePaths:Ignore list) (filePath:string) =
         let segments = filePath.Split Path.DirectorySeparatorChar |> Array.toList

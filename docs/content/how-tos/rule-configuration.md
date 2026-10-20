@@ -35,6 +35,8 @@ In the configuration file paths can be used to specify files that should be incl
 * Directories in the path must be separated using `/`
 * If the path ends with a `/` then everything inside of a matching directory shall be excluded.
 * If the path does not end with a `/` then all matching files are excluded.
+* `*` and `?` match within one path segment: `obj/*/*.fs` matches `obj/Debug/X.fs` but not `obj/Debug/net10.0/X.fs`.
+* A segment that is exactly `**` matches zero or more directories: `**/obj/**/*.fs` matches `obj/X.fs`, `src/obj/Debug/X.fs` and `src/obj/Debug/net10.0/X.fs`. A trailing `**` (`obj/**`) matches everything inside `obj`.
 
 
 ## <a name="ruleList"></a>Rule List
