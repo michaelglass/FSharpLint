@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `ignoreFiles`: a `**` segment now matches zero or more directories, as in `.gitignore`. It used to match exactly one, so `**/obj/**/*.fs` missed `obj/Debug/net10.0/X.fs`. `*` still matches within a single segment.
+
 ### Security
 
 - Pin the build script's NuGet.Protocol dependency to 6.12.5, including patched NuGet.Packaging, for GHSA-g4vj-cjjj-v7hg.
