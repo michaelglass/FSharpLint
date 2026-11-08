@@ -99,7 +99,7 @@ type TestConfiguration() =
     member _.``A ** segment matches any number of directories.``() =
         let ignorePaths = [ IgnoreFiles.parseIgnorePath "**/obj/**/*.fs" ]
 
-        IgnoreFiles.shouldFileBeIgnored ignorePaths ("obj/Debug/net10.0/X.fs".ToPlatformIndependentPath())
+        IgnoreFiles.shouldFileBeIgnored ignorePaths (@"obj\Debug\net10.0\X.fs".ToPlatformIndependentPath())
         |> Assert.IsTrue
 
         IgnoreFiles.shouldFileBeIgnored ignorePaths (@"D:\repo\src\App\obj\Debug\net10.0\X.fs".ToPlatformIndependentPath())
@@ -115,7 +115,7 @@ type TestConfiguration() =
     member _.``A ** segment matches zero directories.``() =
         let ignorePaths = [ IgnoreFiles.parseIgnorePath "**/obj/**/*.fs" ]
 
-        IgnoreFiles.shouldFileBeIgnored ignorePaths ("obj/X.fs".ToPlatformIndependentPath())
+        IgnoreFiles.shouldFileBeIgnored ignorePaths (@"obj\X.fs".ToPlatformIndependentPath())
         |> Assert.IsTrue
 
         IgnoreFiles.shouldFileBeIgnored [ IgnoreFiles.parseIgnorePath "dog/**/source.fs" ] (@"D:\dog\source.fs".ToPlatformIndependentPath())
