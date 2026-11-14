@@ -386,7 +386,11 @@ module Ast =
         match node with
         | SynTypeDefnSimpleRepr.Union(_, unionCases, _) -> List.revIter (UnionCase >> add) unionCases
         | SynTypeDefnSimpleRepr.Enum(enumCases, _) -> List.revIter (EnumCase >> add) enumCases
-        | SynTypeDefnSimpleRepr.Record(_, fields, _) -> List.revIter (Field >> add) fields
+        | SynTypeDefnSimpleRepr.Record(_, fields, _) ->
+            fields
+            |> List.revIter (function
+                | SynFieldOrSpread.Field field -> add <| Field field
+                | SynFieldOrSpread.Spread(SynTypeSpread(ty = synType)) -> add <| Type synType)
         | SynTypeDefnSimpleRepr.TypeAbbrev(_, synType, _) -> add <| Type synType
         | SynTypeDefnSimpleRepr.Exception(exceptionRepr) -> add <| ExceptionRepresentation exceptionRepr
         | SynTypeDefnSimpleRepr.General(_)

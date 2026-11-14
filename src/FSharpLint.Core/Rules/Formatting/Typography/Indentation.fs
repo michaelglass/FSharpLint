@@ -42,14 +42,18 @@ module ContextBuilder =
     [<TailCall>]
     let rec private collectRecordFieldsInner acc expr =
         match expr with
-        | (SynExpr.Record (_, _, fields, _)) ->
+        | (SynExpr.Record (_, _, fieldsAndSpreads, _)) ->
+            let fields =
+                fieldsAndSpreads
+                |> List.choose (function
+                    | SynExprRecordFieldOrSpread.Field(field, _) -> Some field
+                    | SynExprRecordFieldOrSpread.Spread _ -> None)
             let newAcc = fields :: acc
-            fields
-            |> List.fold (fun currentAcc (SynExprRecordField(_, _, exprOpt, _, _)) ->
-                match exprOpt with
-                | Some expr -> collectRecordFieldsInner currentAcc expr
-                | None -> currentAcc
-            ) newAcc
+            fieldsAndSpreads
+            |> List.choose (function
+                | SynExprRecordFieldOrSpread.Field(SynExprRecordField(_, _, exprOpt, _), _) -> exprOpt
+                | SynExprRecordFieldOrSpread.Spread(SynExprSpread(_, expr, _), _) -> Some expr)
+            |> List.fold (fun currentAcc expr -> collectRecordFieldsInner currentAcc expr) newAcc
         | _ ->
             acc
 
@@ -72,7 +76,9 @@ module ContextBuilder =
         match node with
         | TypeDefinition (SynTypeDefn(_, SynTypeDefnRepr.Simple(SynTypeDefnSimpleRepr.Record(_, fields, _), _), _, _, _, _)) ->
             fields
-            |> List.map (fun (SynField (_, _, _, _, _, _, _, range, _)) -> range)
+            |> List.choose (function
+                | SynFieldOrSpread.Field(SynField (_, _, _, _, _, _, _, range, _)) -> Some range
+                | SynFieldOrSpread.Spread _ -> None)
             |> firstRangePerLine
             |> createAbsoluteAndOffsetOverridesBasedOnFirst
         | Expression (SynExpr.Tuple (_, exprs, _, _)) ->
@@ -84,7 +90,7 @@ module ContextBuilder =
             collectRecordFields record
             |> List.collect (fun recordFields ->
                 recordFields
-                |> List.map (fun (SynExprRecordField((fieldName, _), _, _, _, _)) -> fieldName.Range)
+                |> List.map (fun (SynExprRecordField((fieldName, _), _, _, _)) -> fieldName.Range)
                 |> firstRangePerLine
                 |> createAbsoluteAndOffsetOverridesBasedOnFirst)
         | Expression (SynExpr.ArrayOrListComputed(expr=(SynExpr.ComputationExpr(expr=expr)))) ->

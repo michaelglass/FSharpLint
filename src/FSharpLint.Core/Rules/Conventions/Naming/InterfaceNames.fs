@@ -16,7 +16,8 @@ let rule config =
 
             if isNotTypeExtension then
                 match componentInfo with
-                | SynComponentInfo(attrs, _, _, identifier, _, _, _, _) ->
+                | SynComponentInfo(attrs, _, _, _, _, _, _, _) ->
+                    let identifier = componentInfo.LongIdent
                     match List.tryLast identifier with
                     | Some typeIdentifier ->
                         if not (isMeasureType attrs) && isInterface typeDef then

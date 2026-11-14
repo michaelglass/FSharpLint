@@ -70,12 +70,15 @@ let rec private processExpressions (errorsSoFar: array<WarningDetails>) (args: A
     | SynExpr.AnonRecd(_, _, recordFields, _, _) :: tail ->
         let fieldExpressions = 
             recordFields
-            |> List.map (fun (_, _, expr) ->  expr)
+            |> List.map (function
+                | SynExprAnonRecordFieldOrSpread.Field(SynExprAnonRecordField(_, _, expr, _), _)
+                | SynExprAnonRecordFieldOrSpread.Spread(SynExprSpread(_, expr, _), _) -> expr)
         processExpressions errorsSoFar args (List.append fieldExpressions tail)
     | SynExpr.Record(_, _, synExprRecordFields, _) :: tail ->
         let mapping =
             function
-            | SynExprRecordField(_, _, expr, _, _) -> expr
+            | SynExprRecordFieldOrSpread.Field(SynExprRecordField(_, _, expr, _), _) -> expr
+            | SynExprRecordFieldOrSpread.Spread(SynExprSpread(_, expr, _), _) -> Some expr
         let fieldExpressions = 
             synExprRecordFields
             |> List.choose mapping

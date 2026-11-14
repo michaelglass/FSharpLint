@@ -69,13 +69,13 @@ let private whileWithBooleanOperatorsInConditionExpressions len =
 /// Generates a body of code containing an if statement with multiple && conditional operators
 let private ifThenExpressionWithMultipleAndConditionals len =
     if len < 2 then invalidArg (nameof len) "must be > 2"
-    $"""if true && {String.replicate (len-2) $"%s{NewLine}false &&"} true then ()"""
+    $"""if true && {String.replicate (len-2) $"%s{NewLine}   false &&"} true then ()"""
     |> makeProgram "f()"
 
 /// Generates a body of code containing an if statement with multiple || conditional operators
 let private ifThenExpressionWithMultipleOrConditionals len =
     if len < 2 then invalidArg (nameof len) "must be > 2"
-    $"""if true || {String.replicate (len-2) $"%s{NewLine}false ||"} true then ()"""
+    $"""if true || {String.replicate (len-2) $"%s{NewLine}   false ||"} true then ()"""
     |> makeProgram "f()"
 
 /// Generates a body of code containing a match expression with multiple patterns.

@@ -149,6 +149,20 @@ foo.[""] <- 0"""
         Assert.IsTrue (this.ErrorMsg.Contains "String.Empty")
 
     [<Test>]
+    member this.FavourStaticEmptyFieldsShouldProduceErrorInRecordSpread() =
+        this.Parse "let r = { ...withName \"\"; Age = 1 }"
+
+        Assert.IsTrue this.ErrorsExist
+        Assert.IsTrue (this.ErrorMsg.Contains "String.Empty")
+
+    [<Test>]
+    member this.FavourStaticEmptyFieldsShouldProduceErrorInAnonymousRecordSpread() =
+        this.Parse "let r = {| ...withName \"\"; Age = 1 |}"
+
+        Assert.IsTrue this.ErrorsExist
+        Assert.IsTrue (this.ErrorMsg.Contains "String.Empty")
+
+    [<Test>]
     member this.FavourStaticEmptyFieldsShouldNotProduceError1() =
         this.Parse "let bar = String.Empty"
 

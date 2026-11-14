@@ -8,10 +8,12 @@ open FSharpLint.Rules.Helper.Naming
 let rule config =
     let getIdentifiers (args:AstNodeRuleParams) =
         match args.AstNode with
-        | AstNode.TypeSimpleRepresentation (SynTypeDefnSimpleRepr.Record (recordFields=recordFields)) ->
+        | AstNode.TypeSimpleRepresentation (SynTypeDefnSimpleRepr.Record (recordFieldsAndSpreads=recordFields)) ->
             recordFields
-            |> List.choose (fun (SynField (idOpt=idOpt)) ->
-                Option.map (fun (identifier: Ident) -> (identifier, identifier.idText, None)) idOpt)
+            |> List.choose (function
+                | SynFieldOrSpread.Field(SynField (idOpt=idOpt)) ->
+                    Option.map (fun (identifier: Ident) -> (identifier, identifier.idText, None)) idOpt
+                | SynFieldOrSpread.Spread _ -> None)
             |> List.toArray
         | _ -> Array.empty
 

@@ -35,6 +35,17 @@ type Record = { dog: int }
         Assert.IsTrue(this.ErrorExistsAt(4, 16))
 
     [<Test>]
+    member this.RecordFieldIsCamelCaseNextToATypeSpread() =
+        this.Parse """
+module Program
+
+type Base = { Dog: int }
+type Record = { ...Base; cat: int }
+"""
+
+        Assert.IsTrue(this.ErrorExistsAt(5, 25))
+
+    [<Test>]
     member this.RecordFieldRuleDoesntApplyToUnionCaseFields() =
         this.Parse """
 type Test =
